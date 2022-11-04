@@ -1,6 +1,9 @@
 #include <iostream>
 
 #include "ProgramOptionsParser.h"
+#include "TextAnalyzer.h"
+
+int RunTextAnalysis(const ProgramOptionsParser& parser);
 
 int main(int argc, const char* argv[])
 {
@@ -15,14 +18,29 @@ int main(int argc, const char* argv[])
         }
         else
         {
-            ProgramSettingsPtr settings {parser.GetSettings()};
+        	return RunTextAnalysis(parser);
         }
     }
     else
     {
-        std::cerr << "Program options parser error." << std::endl;
+        std::cerr << "Program options parser error. Exiting." << std::endl;
         return 1;
     }
-	return 0;
 }
 
+int RunTextAnalysis(const ProgramOptionsParser& parser)
+{
+	ProgramSettingsPtr settings {parser.GetSettings()};
+	TextAnalyzer analyzer(settings);
+	bool status = analyzer.Run();
+	if (status)
+	{
+		analyzer.PrintResults();
+		return 0;
+	}
+	else
+	{
+		std::cerr << "Text analyzer error. Exiting." << std::endl;
+		return 2;
+	}
+}

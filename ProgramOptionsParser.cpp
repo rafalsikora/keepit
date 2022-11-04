@@ -21,8 +21,8 @@ bool ProgramOptionsParser::ParseArguments()
     for (unsigned int i=0; i<m_programArguments.size(); ++i)
     {
         const auto arg = m_programArguments[i];
-        const auto option = m_optionsDescription[arg];
-        switch(option.second)
+        const auto option = m_optionsMap[arg];
+        switch(option.m_id)
         {
             case OPT_HELP:
                 m_isHelpRequested = true;
@@ -51,16 +51,16 @@ void ProgramOptionsParser::ReadArguments(int argc, const char* argv[])
 
 void ProgramOptionsParser::AddOptions()
 {
-    m_optionsDescription["-h"] = {"Display help message.", OPT_HELP};
-    m_optionsDescription["-j"] = {"The number of threads to be used (defined by the number which follows e.g. -j 5)", OPT_NTHREADS};
-    m_optionsDescription["-f"] = {"The path to the file (the string which follows) e.g. -f /home/user/file.txt", OPT_FILENAME};
+    m_optionsMap["-h"] = {"-h", "Display help message.", OPT_HELP};
+    m_optionsMap["-j"] = {"-j", "The number of threads to be used (defined by the number which follows e.g. -j 5)", OPT_NTHREADS};
+    m_optionsMap["-f"] = {"-f", "The path to the file (the string which follows) e.g. -f /home/user/file.txt", OPT_FILENAME};
 }
 
 void ProgramOptionsParser::PrintHelp() const
 {
     std::cout << "Options available:" << std::endl;
-    for (const auto& [opt, val] : m_optionsDescription)
+    for (const auto& [optString, optObject] : m_optionsMap)
     {
-        std::cout << opt << '\t' << val.first << std::endl;
+        std::cout << optString << '\t' << optObject.m_description << std::endl;
     }
 }

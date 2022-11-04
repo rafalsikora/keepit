@@ -7,6 +7,16 @@
 
 #include "ProgramSettings.h"
 
+
+enum OPTIONS { OPT_HELP=1, OPT_NTHREADS=2, OPT_FILENAME=3 };
+
+struct ProgramOption
+{
+	std::string 	m_option;
+	std::string 	m_description;
+	OPTIONS 		m_id;
+};
+
 class ProgramOptionsParser
 {
 
@@ -20,14 +30,12 @@ public:
     void PrintHelp() const;
     
 private:
-    enum OPTIONS { OPT_HELP=1, OPT_NTHREADS=2, OPT_FILENAME=3 };
-    
     void ReadArguments(int argc, const char* argv[]);
     bool ParseArguments();
     void AddOptions();
     
-    ProgramSettingsPtr  m_programSettings;
-    bool                m_isHelpRequested;
-    std::map<std::string, std::pair<std::string, int>> m_optionsDescription;
-    std::vector<std::string> m_programArguments;
+    ProgramSettingsPtr  						m_programSettings;
+    bool                						m_isHelpRequested;
+    std::map<std::string, ProgramOption> 	m_optionsMap;
+    std::vector<std::string> 					m_programArguments;
 };
