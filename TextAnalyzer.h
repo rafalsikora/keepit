@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <vector>
 
 #include "IAnalyzerAlgorithm.h"
@@ -17,8 +18,14 @@ public:
 
 private:
     bool RunAllAnalyzers();
+    bool StartNewThreadsAndRun();
+    void WaitUntilThreadsExecute() const;
     void MergeResultsFromAllAnalyzers();
 
+    static const int 			m_waitLoopSleepMs;
+
+    std::atomic_int 			m_nThreadsReady{};
+    std::atomic_bool 			m_abortFlag{false};
 //    FileHandler				m_fileHandler;
 //    OptionsValidator			m_optionsValidator;
     const ProgramSettingsPtr  	m_programSettings;

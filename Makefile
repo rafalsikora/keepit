@@ -7,7 +7,7 @@ SRCS = $(shell find . -type f -name '*.cpp' -print | sed -e 's/ /\\ /g')
 HEADERS = $(shell find . -type f -name '*.h' -print)
 
 keepit: $(SRCS) $(HEADERS)
-	$(CXX) $(CXXFLAGS) $(SRCS) -o "$@"
+	$(CXX) $(CXXFLAGS) $(SRCS) -pthread -o "$@"
 
 clean:
 	rm -f keepit

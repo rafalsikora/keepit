@@ -1,15 +1,25 @@
 #include "TextAnalyzer.h"
 
+#include <chrono>
 #include <iostream>
 #include <string>
+#include <thread>
 #include <unordered_set>
 
 #include "AnalyzerAlgorithmFactory.h"
 
+using std::chrono::duration_cast;
+using std::chrono::milliseconds;
+using std::chrono::steady_clock;
+
+const int TextAnalyzer::m_waitLoopSleepMs{10};
+
 TextAnalyzer::TextAnalyzer(const ProgramSettingsPtr& programSettings)
-    : m_programSettings{programSettings},
-	  m_analyzers{},
-	  m_nUniqueWords{}
+    :	m_nThreadsReady{},
+		m_abortFlag{false},
+		m_programSettings{programSettings},
+		m_analyzers{},
+		m_nUniqueWords{}
 {
 	m_analyzers = AnalyzerAlgorithmFactory::Create(m_programSettings);
 }
@@ -28,16 +38,37 @@ bool TextAnalyzer::Run()
 	return status;
 }
 
-bool TextAnalyzer::RunAllAnalyzers() // MULTITHREADING HERE //ALERT
+bool TextAnalyzer::RunAllAnalyzers()
 {
-	bool status = true;
+	auto start = steady_clock::now();
+	bool status = StartNewThreadsAndRun();
+	WaitUntilThreadsExecute();
+	if (status)
+	{
+		std::cout << "Execution time [ms]: " << duration_cast<milliseconds>(steady_clock::now()-start).count() << std::endl;
+	}
+	return status; // ALERT to be added: take into account Run() algorithm return status
+}
+
+bool TextAnalyzer::StartNewThreadsAndRun()
+{
 	for (auto& analyzer : m_analyzers)
 	{
-		bool result = analyzer->Run();
-		status = status && result;
+		if (!analyzer->StartNewThreadAndRun(m_nThreadsReady, m_abortFlag))
+		{
+			std::cerr << "Error while running the analyzer. The text analysis will now be stopped." << std::endl;
+			return false;
+		}
 	}
+	return true;
+}
 
-	return status;
+void TextAnalyzer::WaitUntilThreadsExecute() const
+{
+	while(m_nThreadsReady.load() < m_programSettings->m_nThreads)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(m_waitLoopSleepMs));
+	}
 }
 
 void TextAnalyzer::MergeResultsFromAllAnalyzers()
