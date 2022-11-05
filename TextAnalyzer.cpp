@@ -7,6 +7,7 @@
 #include <unordered_set>
 
 #include "AnalyzerAlgorithmFactory.h"
+#include "FileHandler.h"
 
 using std::chrono::duration_cast;
 using std::chrono::milliseconds;
@@ -14,27 +15,39 @@ using std::chrono::steady_clock;
 
 const int TextAnalyzer::m_waitLoopSleepMs{10};
 
-TextAnalyzer::TextAnalyzer(const ProgramSettingsPtr& programSettings)
+TextAnalyzer::TextAnalyzer(const ProgramSettingsPtrConst& programSettings)
     :	m_nThreadsReady{},
 		m_abortFlag{false},
 		m_programSettings{programSettings},
+		m_fileHandler{},
 		m_analyzers{},
 		m_nUniqueWords{}
 {
-	m_analyzers = AnalyzerAlgorithmFactory::Create(m_programSettings);
+	m_fileHandler.reset(new FileHandler(m_programSettings));
+	m_analyzers = AnalyzerAlgorithmFactory::Create(m_programSettings, m_fileHandler);
 }
 
 bool TextAnalyzer::Run()
 {
-	const bool status = RunAllAnalyzers();
+	bool status = m_fileHandler->Initialize();
 	if (status)
 	{
-		MergeResultsFromAllAnalyzers();
+		status = RunAllAnalyzers();
+
+		if (status)
+		{
+			MergeResultsFromAllAnalyzers();
+		}
+		else
+		{
+			std::cerr << "Error during text analysis." << std::endl;
+		}
 	}
 	else
 	{
-		std::cerr << "Error during text analysis." << std::endl;
+		std::cerr << "Error during file handler initialization." << std::endl;
 	}
+	m_fileHandler->ReleaseMemoryAll();
 	return status;
 }
 
@@ -43,11 +56,13 @@ bool TextAnalyzer::RunAllAnalyzers()
 	auto start = steady_clock::now();
 	bool status = StartNewThreadsAndRun();
 	WaitUntilThreadsExecute();
+	StopThreadsAndJoin();
 	if (status)
 	{
-		std::cout << "Execution time [ms]: " << duration_cast<milliseconds>(steady_clock::now()-start).count() << std::endl;
+		double executionTime = duration_cast<milliseconds>(steady_clock::now()-start).count()/1000.;
+		std::cout << "Execution time [s]: " << executionTime << std::endl;
 	}
-	return status; // ALERT to be added: take into account Run() algorithm return status
+	return status && !m_abortFlag;
 }
 
 bool TextAnalyzer::StartNewThreadsAndRun()
@@ -65,9 +80,17 @@ bool TextAnalyzer::StartNewThreadsAndRun()
 
 void TextAnalyzer::WaitUntilThreadsExecute() const
 {
-	while(m_nThreadsReady.load() < m_programSettings->m_nThreads)
+	while (m_nThreadsReady.load() < m_programSettings->m_nThreads)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(m_waitLoopSleepMs));
+	}
+}
+
+void TextAnalyzer::StopThreadsAndJoin()
+{
+	for (auto& analyzer : m_analyzers)
+	{
+		analyzer->StopAndJoinThread();
 	}
 }
 

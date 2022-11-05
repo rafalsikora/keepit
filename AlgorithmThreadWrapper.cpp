@@ -1,0 +1,103 @@
+#include "AlgorithmThreadWrapper.h"
+
+#include <exception>
+#include <iostream>
+
+AlgorithmThreadWrapper::AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler)
+	: m_fileHandler{fileHandler},
+	  m_thread{},
+	  m_uniqueWords{},
+	  m_text{},
+	  m_textTotalSize{},
+	  m_lastNonWhiteChar{},
+	  m_isNewText{},
+	  m_textIterator{}
+{
+}
+
+AlgorithmThreadWrapper::~AlgorithmThreadWrapper()
+{
+	StopAndJoinThread();
+}
+
+bool AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_uint& done, std::atomic_bool& abort)
+{
+	try
+	{
+		m_thread = std::thread([&]()
+		{
+			while (!abort)
+			{
+				const auto data = m_fileHandler->GetPartOfText(m_text);
+				if (data == FileHandler::END_OF_FILE)
+				{
+					std::cout << "End of file" << std::endl;
+					break;
+				}
+				if (data == FileHandler::FATAL_ERROR)
+				{
+					std::cout << "Abort" << std::endl;
+					abort = true;
+					break;
+				}
+
+				m_isNewText = true;
+				m_text = std::get<const char*>(data);
+				m_textTotalSize = std::get<size_t>(data);
+
+				std::string word{};
+				while (GetNextWord(word) && !abort)
+				{
+					m_uniqueWords.emplace(word);
+				}
+			}
+			++done;
+		});
+		return true;
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "New thread in " << typeid(this).name() << " could not be started. Exception thrown: " << e.what() << std::endl;
+		abort = true;
+		++done;
+		return false;
+	}
+}
+
+bool AlgorithmThreadWrapper::GetNextWord(std::string& word)
+{
+	if (m_isNewText)
+	{
+		m_lastNonWhiteChar = m_text;
+		m_textIterator = 0;
+		m_isNewText = false;
+	}
+
+	size_t wordSize{};
+	for(; m_textIterator<m_textTotalSize; ++m_textIterator)
+	{
+		if (isspace(m_text[m_textIterator]) || m_textIterator==(m_textTotalSize-1))
+		{
+			if (wordSize)
+			{
+				word = std::string(m_lastNonWhiteChar, wordSize);
+				return true;
+			}
+			m_lastNonWhiteChar = &m_text[m_textIterator+1];
+			wordSize = 0;
+		}
+		else
+		{
+			++wordSize;
+		}
+	}
+	return false;
+}
+
+void AlgorithmThreadWrapper::StopAndJoinThread()
+{
+	if (m_thread.joinable())
+	{
+		m_thread.join();
+	}
+}

@@ -3,14 +3,17 @@
 #include <atomic>
 #include <vector>
 
+#include "FileHandler.h"
 #include "IAnalyzerAlgorithm.h"
 #include "ProgramSettings.h"
+
+class FileHandler;
 
 class TextAnalyzer
 {
 
 public:
-    explicit TextAnalyzer(const ProgramSettingsPtr& programSettingsPtr);
+    explicit TextAnalyzer(const ProgramSettingsPtrConst& programSettingsPtr);
     ~TextAnalyzer() = default;
     
     [[nodiscard]] bool Run();
@@ -20,15 +23,16 @@ private:
     bool RunAllAnalyzers();
     bool StartNewThreadsAndRun();
     void WaitUntilThreadsExecute() const;
+    void StopThreadsAndJoin();
     void MergeResultsFromAllAnalyzers();
 
     static const int 			m_waitLoopSleepMs;
 
-    std::atomic_int 			m_nThreadsReady{};
+    std::atomic_uint 			m_nThreadsReady{};
     std::atomic_bool 			m_abortFlag{false};
-//    FileHandler				m_fileHandler;
 //    OptionsValidator			m_optionsValidator;
-    const ProgramSettingsPtr  	m_programSettings;
-    std::vector<IAnalyzerAlgorithmPtr>		m_analyzers;
+    const ProgramSettingsPtrConst m_programSettings;
+    FileHandlerPtr				m_fileHandler;
+    std::vector<IAnalyzerAlgorithmPtr> m_analyzers;
     long						m_nUniqueWords;
 };

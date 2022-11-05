@@ -30,7 +30,9 @@ int main(int argc, const char* argv[])
 
 int RunTextAnalysis(const ProgramOptionsParser& parser)
 {
-	ProgramSettingsPtr settings {parser.GetSettings()};
+	ProgramSettingsPtrConst settings{parser.GetSettings()};
+	settings->Print();
+
 	TextAnalyzer analyzer(settings);
 	bool status = analyzer.Run();
 	if (status)
