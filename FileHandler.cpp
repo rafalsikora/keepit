@@ -1,21 +1,20 @@
 #include "FileHandler.h"
 
 #include <algorithm>
+#include <cctype>
 #include <iostream>
-#include <limits>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-const std::tuple<const char*, size_t> 	FileHandler::FATAL_ERROR {nullptr, std::numeric_limits<size_t>::max()};
 const std::tuple<const char*, size_t> 	FileHandler::END_OF_FILE {nullptr, 0};
 
 FileHandler::FileHandler(const ProgramSettingsPtrConst& programSettingsPtr)
 	:	m_programSettings{programSettingsPtr},
-		m_memoryPageSize{static_cast<size_t>(sysconf(_SC_PAGESIZE))},
 		m_isInitialized{},
 		m_fileDescriptor{-1},
+		m_fileData{},
 		m_fileLengthTotal{},
 		m_fileLengthProcessed{},
 		m_singleChunkDefaultLength{}
@@ -24,7 +23,7 @@ FileHandler::FileHandler(const ProgramSettingsPtrConst& programSettingsPtr)
 
 FileHandler::~FileHandler()
 {
-	ReleaseMemoryAll();
+	Finalize();
 	Close();
 }
 
@@ -34,7 +33,21 @@ bool FileHandler::Initialize()
 	if (status)
 	{
 		status = DetermineResourcesManagementPolicy();
-		if (!status)
+		if (status)
+		{
+			const char* addr = MapFile();
+			if (addr == MAP_FAILED)
+			{
+				std::cerr << "Problem occurred when mapping the file into memory." << std::endl;
+				status = false;
+			}
+			else
+			{
+				m_fileData = addr;
+				m_isInitialized = true;
+			}
+		}
+		else
 		{
 			std::cerr << "Problem occurred when determining the resource management policy." << std::endl;
 		}
@@ -42,7 +55,6 @@ bool FileHandler::Initialize()
 	else{
 		std::cerr << "Problem occurred when opening the file " << m_programSettings->m_fileName << " during initialization." << std::endl;
 	}
-	m_isInitialized = status;
 	return status;
 }
 
@@ -67,103 +79,82 @@ bool FileHandler::DetermineResourcesManagementPolicy()
 	else
 	{
 		m_fileLengthTotal = static_cast<size_t>(sb.st_size);
-		m_singleChunkDefaultLength = m_fileLengthTotal / m_programSettings->m_nThreads;
-		m_singleChunkDefaultLength -= m_singleChunkDefaultLength % m_memoryPageSize;
-		if (m_singleChunkDefaultLength < m_memoryPageSize)
-		{
-			m_singleChunkDefaultLength = m_memoryPageSize;
-		}
+		m_singleChunkDefaultLength = m_fileLengthTotal / m_programSettings->m_nThreads + 1;
 		return true;
 	}
 }
 
-std::tuple<const char*, size_t> FileHandler::GetPartOfText(const char* memoryToUnmap)
+std::tuple<const char*, size_t> FileHandler::GetPartOfText()
 {
 	std::lock_guard<std::mutex> guard(m_mutex);
-	std::cout << "Getting part of text" << std::endl;
-	ReleaseMemory(memoryToUnmap);
 
-	if (m_mappedMemory.size() >= m_programSettings->m_nThreads)
-	{
-		std::cerr << "FATAL ERROR: abnormal file read (max count exceeded)!" << std::endl;
-		return FATAL_ERROR;
-	}
-
-	if (m_fileLengthProcessed == m_fileLengthTotal)
+	if (ReachedEOF())
 	{
 		return END_OF_FILE;
 	}
 
-	size_t currentChunkLength = GetCurrentChunkLength();
-	const char* addr = static_cast<const char*>(mmap(NULL,
-													 currentChunkLength,
-													 PROT_READ,
-													 MAP_PRIVATE,
-													 m_fileDescriptor,
-													 static_cast<off_t>(m_fileLengthProcessed)));
-	if (addr == MAP_FAILED)
-	{
-		std::cerr << "DEBUG: Map failed" << std::endl;
-		return FATAL_ERROR;
-	}
-	else
-	{
-		std::cout << "DEBUG: Map succeeded" << std::endl;
-		size_t textSizeUntilTheLastWhitespace{currentChunkLength};
-		RemoveTrailingTruncatedWords(textSizeUntilTheLastWhitespace);
-		UpdateFileRead(addr, currentChunkLength, textSizeUntilTheLastWhitespace);
-		return {addr, textSizeUntilTheLastWhitespace};
-	}
+	const auto currentTextChunkHead = GetChunkHead();
+	const auto currentTextChunkLength = GetChunkLengthUntilNextWhitespaceOrEOF();
+	UpdateText(currentTextChunkLength);
+
+	return {currentTextChunkHead, currentTextChunkLength};
 }
 
-size_t FileHandler::GetCurrentChunkLength() const
+size_t FileHandler::GetChunkLengthUntilNextWhitespaceOrEOF() const
 {
 	size_t currentChunkLength{m_singleChunkDefaultLength};
 	if (m_fileLengthProcessed + currentChunkLength > m_fileLengthTotal)
 	{
 		currentChunkLength = m_fileLengthTotal - m_fileLengthProcessed;
 	}
+	else
+	{
+		while (m_fileLengthProcessed + currentChunkLength < m_fileLengthTotal)
+		{
+			bool isSpace = isspace(GetChunkHead()[currentChunkLength]);
+			if (!isSpace)
+			{
+				++currentChunkLength;
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
 	return currentChunkLength;
 }
 
-void FileHandler::RemoveTrailingTruncatedWords(size_t& textSizeUntilTheLastWhitespace) const
+void FileHandler::UpdateText(const size_t& currentTextChunkLength)
 {
-
+	m_fileLengthProcessed += currentTextChunkLength;
 }
 
-void FileHandler::UpdateFileRead(const char* addr, const size_t& currentChunkLength, const size_t& textLengthInCurrentChunk)
+const char* FileHandler::GetChunkHead() const
 {
-	m_fileLengthProcessed += textLengthInCurrentChunk;
-	m_mappedMemory[addr] = currentChunkLength;
+	return &m_fileData[m_fileLengthProcessed];
 }
 
-void FileHandler::ReleaseMemoryAll()
+bool FileHandler::ReachedEOF() const
 {
-	for(const auto& [ptr, size] : m_mappedMemory)
+	return m_fileLengthProcessed == m_fileLengthTotal;
+}
+
+void FileHandler::Finalize()
+{
+	if (UnmapFile() == -1)
 	{
-		ReleaseMemory(ptr, size);
+		std::cerr << "Unexpected error during mapped file memory release. Address = " << m_fileData << std::endl;
 	}
+	m_isInitialized = false;
 }
 
-void FileHandler::ReleaseMemory(const char* memoryToUnmap)
+const char* FileHandler::MapFile()
 {
-	if(!memoryToUnmap)
-	{
-		return;
-	}
-	if (auto it = m_mappedMemory.find(memoryToUnmap); it == m_mappedMemory.end()) {
-		std::cerr << "Error - trying to release memory not reserved by the file handler." << std::endl;
-	} else {
-		const size_t size = m_mappedMemory[memoryToUnmap];
-		ReleaseMemory(memoryToUnmap, size);
-		m_mappedMemory.erase(it);
-	}
+	return static_cast<const char*>(mmap(NULL, m_fileLengthTotal, PROT_READ, MAP_PRIVATE, m_fileDescriptor, 0));
 }
 
-void FileHandler::ReleaseMemory(const char* memoryToUnmap, const size_t size) const
+int FileHandler::UnmapFile()
 {
-	if (munmap(const_cast<char*>(memoryToUnmap), size) == -1)
-	{
-		std::cerr << "Unexpected error during mapped file memory release. Address = " << memoryToUnmap << std::endl;
-	}
+	return munmap(const_cast<char*>(m_fileData), m_fileLengthTotal);
 }

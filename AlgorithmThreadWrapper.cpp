@@ -1,12 +1,13 @@
 #include "AlgorithmThreadWrapper.h"
 
+#include <cctype>
 #include <exception>
 #include <iostream>
 
-AlgorithmThreadWrapper::AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler)
+AlgorithmThreadWrapper::AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler, const IAnalyzerAlgorithmPtr& algorithm)
 	: m_fileHandler{fileHandler},
+	  m_algorithm{algorithm},
 	  m_thread{},
-	  m_uniqueWords{},
 	  m_text{},
 	  m_textTotalSize{},
 	  m_lastNonWhiteChar{},
@@ -28,16 +29,9 @@ bool AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_uint& done, std::a
 		{
 			while (!abort)
 			{
-				const auto data = m_fileHandler->GetPartOfText(m_text);
+				const auto data = m_fileHandler->GetPartOfText();
 				if (data == FileHandler::END_OF_FILE)
 				{
-					std::cout << "End of file" << std::endl;
-					break;
-				}
-				if (data == FileHandler::FATAL_ERROR)
-				{
-					std::cout << "Abort" << std::endl;
-					abort = true;
 					break;
 				}
 
@@ -48,7 +42,7 @@ bool AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_uint& done, std::a
 				std::string word{};
 				while (GetNextWord(word) && !abort)
 				{
-					m_uniqueWords.emplace(word);
+					*m_algorithm += word;
 				}
 			}
 			++done;

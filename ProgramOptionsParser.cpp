@@ -1,8 +1,8 @@
 #include "ProgramOptionsParser.h"
 
 #include <iostream>
-#include <experimental/filesystem>
 #include <unistd.h>
+#include <experimental/filesystem>
 
 ProgramOptionsParser::ProgramOptionsParser()
     : m_programSettings{}, m_isHelpRequested{false}
@@ -90,25 +90,6 @@ bool ProgramOptionsParser::ValidateProgramSettings(ProgramSettings& settings)
 				"threads while hardware supports n_max=" << DEFAUTL_NUM_THREADS << \
 				" concurrent threads. Setting n to n_max." << std::endl;
 		settings.m_nThreads = DEFAUTL_NUM_THREADS;
-	}
-
-	const auto fileSize = std::experimental::filesystem::file_size(settings.m_fileName);
-	const auto memoryPageSize = sysconf(_SC_PAGESIZE);
-	if (memoryPageSize == -1)
-	{
-		std::cerr << "FATAL ERROR: Cannot determine memory page size." << std::endl;
-		return false;
-	}
-	else
-	{
-		const auto n = fileSize/static_cast<decltype(fileSize)>(memoryPageSize) + 1;
-		if (settings.m_nThreads > n)
-		{
-			std::cout << "Warning: asked to use n=" << settings.m_nThreads << \
-					" threads which is too many given the file size of " << \
-					fileSize << " bytes. Setting n to " << n <<  "." << std::endl;
-			settings.m_nThreads = n;
-		}
 	}
 
 	return true;

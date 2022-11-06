@@ -47,7 +47,7 @@ bool TextAnalyzer::Run()
 	{
 		std::cerr << "Error during file handler initialization." << std::endl;
 	}
-	m_fileHandler->ReleaseMemoryAll();
+	m_fileHandler->Finalize();
 	return status;
 }
 
