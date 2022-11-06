@@ -44,6 +44,9 @@ bool ProgramOptionsParser::ParseArguments(ProgramSettings& settings)
             case OPT_FILENAME:
             	settings.m_fileName = m_programArguments[++i];
                 break;
+            case OPT_ALGORITHM:
+            	settings.m_algorithmId = static_cast<ALGORITHM>(std::stoi(m_programArguments[++i]));
+            	break;
             default:
                 std::cerr << "Unrecognized option: \"" << arg << "\"" << std::endl;
                 status = false;
@@ -65,6 +68,7 @@ void ProgramOptionsParser::AddOptions()
     m_optionsMap["-h"] = {"-h", "Display help message.", OPT_HELP};
     m_optionsMap["-j"] = {"-j", "The number of threads to be used (defined by the number which follows e.g. -j 5)", OPT_NTHREADS};
     m_optionsMap["-f"] = {"-f", "The path to the file (the string which follows) e.g. -f /home/user/file.txt", OPT_FILENAME};
+    m_optionsMap["-a"] = {"-a", "The id of the words duplicate search algorithm (1 = hashing in std::unordered_set, 2 = trie algorithm) e.g. -a 2", OPT_ALGORITHM};
 }
 
 void ProgramOptionsParser::PrintHelp() const

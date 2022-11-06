@@ -8,7 +8,7 @@
 #include "ProgramSettings.h"
 
 
-enum OPTIONS { OPT_HELP=1, OPT_NTHREADS=2, OPT_FILENAME=3 };
+enum OPTIONS { OPT_HELP=1, OPT_NTHREADS, OPT_FILENAME, OPT_ALGORITHM };
 
 struct ProgramOption
 {

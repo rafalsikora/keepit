@@ -5,10 +5,10 @@
 #include <string>
 #include <unordered_set>
 
-class AnalyzerAlgorithmUnorderedSet : public IAnalyzerAlgorithm
+class AnalyzerAlgorithm_UnorderedSet : public IAnalyzerAlgorithm
 {
 public:
-    ~AnalyzerAlgorithmUnorderedSet() override = default;
+    ~AnalyzerAlgorithm_UnorderedSet() override = default;
 
     void operator+=(const std::string& word) override { m_uniqueWords.insert(word); };
     const std::unordered_set<std::string>& GetResult() const override { return m_uniqueWords; }
