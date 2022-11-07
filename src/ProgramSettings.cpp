@@ -14,6 +14,6 @@ void ProgramSettings::Print() const
 	std::cout << "Program settings:";
 	std::cout << " nThreads=" << m_nThreads;
 	std::cout << " fileName=" << m_fileName;
-	std::cout << " m_algorithmId=" << static_cast<unsigned int>(m_algorithmId);
+	std::cout << " algorithmId=" << static_cast<unsigned int>(m_algorithmId);
 	std::cout << "\n------------------" << std::endl;
 }

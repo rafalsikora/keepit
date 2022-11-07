@@ -67,10 +67,11 @@ bool AlgorithmThreadWrapper::GetNextWord(std::string& word)
 		m_isNewText = false;
 	}
 
-	size_t wordSize{};
-	for(; m_textIterator<m_textTotalSize; ++m_textIterator)
+	for(size_t wordSize{}; m_textIterator<=m_textTotalSize; ++m_textIterator)
 	{
-		if (isspace(m_text[m_textIterator]) || m_textIterator==(m_textTotalSize-1))
+	   const auto isCharSpace { isspace(m_text[m_textIterator]) };
+	   const auto isCharLastInText { m_textIterator==m_textTotalSize };
+		if (isCharSpace || isCharLastInText)
 		{
 			if (wordSize)
 			{

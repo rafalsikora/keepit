@@ -21,7 +21,7 @@ TextAnalyzer::TextAnalyzer(const ProgramSettingsPtrConst& programSettings)
 		m_programSettings{programSettings},
 		m_fileHandler{},
 		m_analyzers{},
-		m_nUniqueWords{}
+		m_uniqueWords{}
 {
 	m_fileHandler.reset(new FileHandler(m_programSettings));
 	m_analyzers = AnalyzerAlgorithmFactory::Create(m_programSettings, m_fileHandler);
@@ -96,16 +96,14 @@ void TextAnalyzer::StopThreadsAndJoin()
 
 void TextAnalyzer::MergeResultsFromAllAnalyzers()
 {
-	std::unordered_set<std::string> mergedResults;
 	for (const auto& analyzer : m_analyzers)
 	{
 		std::unordered_set<std::string> singleResult{analyzer->GetResult()};
-		mergedResults.merge(singleResult);
+		m_uniqueWords.merge(singleResult);
 	}
-	m_nUniqueWords = static_cast<long>(mergedResults.size());
 }
 
 void TextAnalyzer::PrintResults() const
 {
-	std::cout << "UNIQUE WORDS:\t" << m_nUniqueWords << std::endl;
+	std::cout << "UNIQUE WORDS:\t" << GetNumberOfUniqueWords() << std::endl;
 }

@@ -17,7 +17,7 @@ public:
     void Finalize();
     std::tuple<const char*, size_t> GetPartOfText();
 
-    static const std::tuple<const char*, size_t> END_OF_FILE;
+    static constexpr std::tuple<const char*, size_t> END_OF_FILE {nullptr, 0};
 
 private:
     bool Open();
@@ -31,14 +31,14 @@ private:
     const char* GetChunkHead() const;
     size_t GetChunkLengthUntilNextWhitespaceOrEOF() const;
 
-    std::mutex					m_mutex;
+    std::mutex					         m_mutex;
     const ProgramSettingsPtrConst  	m_programSettings;
-    bool						m_isInitialized;
-    int							m_fileDescriptor;
-    const char*					m_fileData;
-    size_t						m_fileLengthTotal;
-    size_t						m_fileLengthProcessed;
-    size_t						m_singleChunkDefaultLength;
+    bool						            m_isInitialized;
+    int							         m_fileDescriptor;
+    const char*					      m_fileData;
+    size_t						         m_fileLengthTotal;
+    size_t						         m_fileLengthProcessed;
+    size_t						         m_singleChunkDefaultLength;
 };
 
 typedef std::shared_ptr<FileHandler> FileHandlerPtr;

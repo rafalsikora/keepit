@@ -88,6 +88,12 @@ bool ProgramOptionsParser::ValidateProgramSettings(ProgramSettings& settings)
 		return false;
 	}
 
+	if (settings.m_algorithmId != ALGORITHM::ALGO_UNORDERED_SET && settings.m_algorithmId != ALGORITHM::ALGO_TRIE)
+	{
+	   std::cerr << "FATAL ERROR: Unrecognized algorithm option." << std::endl;
+	   return false;
+	}
+
 	if (settings.m_nThreads > DEFAUTL_NUM_THREADS)
 	{
 		std::cout << "Warning: asked to use n=" << settings.m_nThreads << \

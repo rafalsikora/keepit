@@ -3,12 +3,11 @@
 #include <algorithm>
 #include <cctype>
 #include <iostream>
+#include <limits>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
-const std::tuple<const char*, size_t> 	FileHandler::END_OF_FILE {nullptr, 0};
 
 FileHandler::FileHandler(const ProgramSettingsPtrConst& programSettingsPtr)
 	:	m_programSettings{programSettingsPtr},
