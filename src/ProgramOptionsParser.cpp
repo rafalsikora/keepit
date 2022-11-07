@@ -97,7 +97,7 @@ bool ProgramOptionsParser::ValidateProgramSettings(ProgramSettings& settings)
 	if (settings.m_nThreads > DEFAUTL_NUM_THREADS)
 	{
 		std::cout << "Warning: asked to use n=" << settings.m_nThreads << \
-				"threads while hardware supports n_max=" << DEFAUTL_NUM_THREADS << \
+				" threads while hardware supports n_max=" << DEFAUTL_NUM_THREADS << \
 				" concurrent threads. Setting n to n_max." << std::endl;
 		settings.m_nThreads = DEFAUTL_NUM_THREADS;
 	}

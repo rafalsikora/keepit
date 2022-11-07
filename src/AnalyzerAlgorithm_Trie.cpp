@@ -3,7 +3,7 @@
 #include <iostream>
 
 AnalyzerAlgorithm_Trie::AnalyzerAlgorithm_Trie()
-   :  m_root{}
+   :  m_root{}, m_uniqueWords{}
 {
 }
 
