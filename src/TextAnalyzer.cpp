@@ -13,14 +13,13 @@ using std::chrono::duration_cast;
 using std::chrono::milliseconds;
 using std::chrono::steady_clock;
 
-const int TextAnalyzer::m_waitLoopSleepMs{10};
-
 TextAnalyzer::TextAnalyzer(const ProgramSettingsPtrConst& programSettings)
     :	m_nThreadsReady{},
 		m_abortFlag{false},
 		m_programSettings{programSettings},
 		m_fileHandler{},
 		m_analyzers{},
+		m_analyzerReturns{},
 		m_uniqueWords{}
 {
 	m_fileHandler.reset(new FileHandler(m_programSettings));
@@ -54,9 +53,8 @@ bool TextAnalyzer::Run()
 bool TextAnalyzer::RunAllAnalyzers()
 {
 	auto start = steady_clock::now();
-	bool status = StartNewThreadsAndRun();
-	WaitUntilThreadsExecute();
-	StopThreadsAndJoin();
+	StartNewThreadsAndRun();
+	bool status = WaitUntilThreadsExecute();
 	if (status)
 	{
 		double executionTime = duration_cast<milliseconds>(steady_clock::now()-start).count()/1000.;
@@ -65,33 +63,27 @@ bool TextAnalyzer::RunAllAnalyzers()
 	return status && !m_abortFlag;
 }
 
-bool TextAnalyzer::StartNewThreadsAndRun()
+void TextAnalyzer::StartNewThreadsAndRun()
 {
 	for (auto& analyzer : m_analyzers)
 	{
-		if (!analyzer->StartNewThreadAndRun(m_nThreadsReady, m_abortFlag))
-		{
-			std::cerr << "Error while running the analyzer. The text analysis will now be stopped." << std::endl;
-			return false;
-		}
-	}
-	return true;
-}
-
-void TextAnalyzer::WaitUntilThreadsExecute() const
-{
-	while (m_nThreadsReady.load() < m_programSettings->m_nThreads)
-	{
-		std::this_thread::sleep_for(std::chrono::milliseconds(m_waitLoopSleepMs));
+	   m_analyzerReturns.push_back(analyzer->StartNewThreadAndRun(m_abortFlag));
 	}
 }
 
-void TextAnalyzer::StopThreadsAndJoin()
+bool TextAnalyzer::WaitUntilThreadsExecute()
 {
-	for (auto& analyzer : m_analyzers)
-	{
-		analyzer->StopAndJoinThread();
-	}
+   bool status = true;
+   for (auto& returnValue : m_analyzerReturns)
+   {
+      returnValue.wait();
+      status = status && returnValue.get();
+   }
+   if (!status)
+   {
+      std::cerr << "Error while running the analyzer. The text analysis will now be stopped." << std::endl;
+   }
+   return status;
 }
 
 void TextAnalyzer::MergeResultsFromAllAnalyzers()

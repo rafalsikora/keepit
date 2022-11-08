@@ -7,7 +7,6 @@
 AlgorithmThreadWrapper::AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler, const IAnalyzerAlgorithmPtr& algorithm)
 	: m_fileHandler{fileHandler},
 	  m_algorithm{algorithm},
-	  m_thread{},
 	  m_text{},
 	  m_textTotalSize{},
 	  m_lastNonWhiteChar{},
@@ -16,16 +15,11 @@ AlgorithmThreadWrapper::AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler
 {
 }
 
-AlgorithmThreadWrapper::~AlgorithmThreadWrapper()
-{
-	StopAndJoinThread();
-}
-
-bool AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_uint& done, std::atomic_bool& abort)
+std::future<bool> AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_bool& abort)
 {
 	try
 	{
-		m_thread = std::thread([&]()
+	   return std::async(std::launch::async, [&]()
 		{
 			while (!abort)
 			{
@@ -45,16 +39,14 @@ bool AlgorithmThreadWrapper::StartNewThreadAndRun(std::atomic_uint& done, std::a
 					*m_algorithm += word;
 				}
 			}
-			++done;
+			return true;
 		});
-		return true;
 	}
 	catch (const std::exception& e)
 	{
 		std::cerr << "New thread in " << typeid(this).name() << " could not be started. Exception thrown: " << e.what() << std::endl;
 		abort = true;
-		++done;
-		return false;
+		return std::future<bool>();
 	}
 }
 
@@ -87,12 +79,4 @@ bool AlgorithmThreadWrapper::GetNextWord(std::string& word)
 		}
 	}
 	return false;
-}
-
-void AlgorithmThreadWrapper::StopAndJoinThread()
-{
-	if (m_thread.joinable())
-	{
-		m_thread.join();
-	}
 }
