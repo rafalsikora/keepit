@@ -1,6 +1,7 @@
 #pragma once
 
 #include <atomic>
+#include <future>
 #include <vector>
 #include <unordered_set>
 
@@ -24,17 +25,15 @@ public:
 
 private:
     bool RunAllAnalyzers();
-    bool StartNewThreadsAndRun();
-    void WaitUntilThreadsExecute() const;
-    void StopThreadsAndJoin();
+    void StartNewThreadsAndRun();
+    bool WaitUntilThreadsExecute();
     void MergeResultsFromAllAnalyzers();
-
-    static const int 						      m_waitLoopSleepMs;
 
     std::atomic_uint 						      m_nThreadsReady;
     std::atomic_bool 						      m_abortFlag;
     const ProgramSettingsPtrConst 			   m_programSettings;
     FileHandlerPtr							      m_fileHandler;
     std::vector<AlgorithmThreadWrapperPtr> 	m_analyzers;
+    std::vector<std::future<bool>>           m_analyzerReturns;
     std::unordered_set<std::string>          m_uniqueWords;
 };

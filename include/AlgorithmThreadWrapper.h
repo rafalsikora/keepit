@@ -2,7 +2,7 @@
 
 #include <atomic>
 #include <string>
-#include <thread>
+#include <future>
 #include <memory>
 #include <unordered_set>
 
@@ -12,11 +12,10 @@
 class AlgorithmThreadWrapper
 {
 public:
-	explicit AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler, const IAnalyzerAlgorithmPtr& algorithm);
-    ~AlgorithmThreadWrapper();
+    explicit AlgorithmThreadWrapper(const FileHandlerPtr& fileHandler, const IAnalyzerAlgorithmPtr& algorithm);
+    ~AlgorithmThreadWrapper() {};
 
-    bool StartNewThreadAndRun(std::atomic_uint& done, std::atomic_bool& abort);
-    void StopAndJoinThread();
+    std::future<bool> StartNewThreadAndRun(std::atomic_bool& abort);
     const std::unordered_set<std::string>& GetResult() const { return m_algorithm->GetResult(); }
 
 private:
@@ -24,7 +23,6 @@ private:
 
     FileHandlerPtr 					      m_fileHandler;
     IAnalyzerAlgorithmPtr		      	m_algorithm;
-    std::thread 					         m_thread;
     const char*						      m_text;
     size_t						         	m_textTotalSize;
     const char*					      	m_lastNonWhiteChar;
